@@ -1,0 +1,44 @@
+[
+  {
+    "title": "Dell Laptop",
+    "price": 1500,
+    "description": "Dell Inspiron",
+    "image": "https://i.pravatar.cc",
+    "category": "electronics"
+  },
+  {
+    "title": "Apple iPhone",
+    "price": 999,
+    "description": "iPhone 16",
+    "image": "https://i.pravatar.cc",
+    "category": "electronics"
+  },
+  {
+    "title": "Nike Shoes",
+    "price": 250,
+    "description": "Running Shoes",
+    "image": "https://i.pravatar.cc",
+    "category": "fashion"
+  },
+  {
+    "title": "Dell Laptop",
+    "price": 1500,
+    "description": "Dell Inspiron",
+    "image": "https://i.pravatar.cc",
+    "category": "electronics"
+  },
+  {
+    "title": "Apple iPhone",
+    "price": 999,
+    "description": "iPhone 16",
+    "image": "https://i.pravatar.cc",
+    "category": "electronics"
+  },
+  {
+    "title": "Nike Shoes",
+    "price": 250,
+    "description": "Running Shoes",
+    "image": "https://i.pravatar.cc",
+    "category": "fashion"
+  }
+]
