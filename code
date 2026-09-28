@@ -1,357 +1,78 @@
+import random
 import re
 
 from playwright.sync_api import Page
-from utils.config import HOME_URL
+
+from utils.config import CATEGORY_NAMES, HOME_URL
 
 
-class AccountPage:
+class HomePage:
 
     def __init__(self, page: Page):
         self.page = page
 
     # ============================================================
-    # OPEN MY ACCOUNT
+    # OPEN HOME PAGE
     # ============================================================
 
-    def open_my_account(self) -> None:
+    def open(self) -> None:
 
-        print("Looking for My H&B profile...")
-
-        # --------------------------------------------------------
-        # STEP 1: Click the profile / My H&B area
-        # --------------------------------------------------------
-
-        profile_clicked = False
-
-        profile_locators = [
-
-            # My H&B text
-            self.page.get_by_text(
-                "My H&B",
-                exact=True
-            ),
-
-            # Profile button / area
-            self.page.get_by_role(
-                "button",
-                name=re.compile(
-                    r"my h&b|account|profile",
-                    re.I
-                )
-            ),
-
-            # Generic element containing My H&B
-            self.page.locator(
-                "text=My H&B"
-            )
-        ]
-
-        for locator in profile_locators:
-
-            try:
-
-                count = locator.count()
-
-                if count == 0:
-                    continue
-
-                for i in range(count):
-
-                    element = locator.nth(i)
-
-                    try:
-
-                        if element.is_visible(timeout=2000):
-
-                            print(
-                                "My H&B profile found."
-                            )
-
-                            element.scroll_into_view_if_needed()
-
-                            self.page.wait_for_timeout(500)
-
-                            element.click(
-                                force=True
-                            )
-
-                            print(
-                                "My H&B profile clicked."
-                            )
-
-                            profile_clicked = True
-
-                            break
-
-                    except Exception:
-                        continue
-
-                if profile_clicked:
-                    break
-
-            except Exception:
-                continue
-
-        if not profile_clicked:
-
-            raise AssertionError(
-                "Could not find My H&B profile."
-            )
-
-        # --------------------------------------------------------
-        # Wait for dropdown
-        # --------------------------------------------------------
+        self.page.goto(
+            HOME_URL,
+            wait_until="domcontentloaded"
+        )
 
         self.page.wait_for_timeout(1000)
 
-        # --------------------------------------------------------
-        # STEP 2: Click My Account from dropdown
-        # --------------------------------------------------------
+    # ============================================================
+    # ACCEPT COOKIES
+    # ============================================================
+
+    def accept_cookies_if_present(self) -> None:
 
         print(
-            "Looking for My Account in profile dropdown..."
+            "Checking cookie popup..."
         )
-
-        my_account = self.page.locator(
-            "a[href*='/my-account']"
-        )
-
-        clicked = False
-
-        if my_account.count() > 0:
-
-            for i in range(my_account.count()):
-
-                element = my_account.nth(i)
-
-                try:
-
-                    if element.is_visible(
-                        timeout=2000
-                    ):
-
-                        print(
-                            "My Account option found."
-                        )
-
-                        element.scroll_into_view_if_needed()
-
-                        self.page.wait_for_timeout(300)
-
-                        element.click(
-                            force=True
-                        )
-
-                        clicked = True
-
-                        print(
-                            "My Account clicked."
-                        )
-
-                        break
-
-                except Exception:
-                    continue
-
-        # --------------------------------------------------------
-        # Fallback: text My Account
-        # --------------------------------------------------------
-
-        if not clicked:
-
-            my_account = self.page.get_by_text(
-                "My Account",
-                exact=True
-            )
-
-            for i in range(my_account.count()):
-
-                element = my_account.nth(i)
-
-                try:
-
-                    if element.is_visible(
-                        timeout=2000
-                    ):
-
-                        print(
-                            "My Account option found."
-                        )
-
-                        element.scroll_into_view_if_needed()
-
-                        element.click(
-                            force=True
-                        )
-
-                        clicked = True
-
-                        print(
-                            "My Account clicked."
-                        )
-
-                        break
-
-                except Exception:
-                    continue
-
-        # --------------------------------------------------------
-        # If click did not work, open account URL directly
-        # --------------------------------------------------------
-
-        if not clicked:
-
-            print(
-                "My Account click was not successful."
-            )
-
-            print(
-                "Opening My Account page directly..."
-            )
-
-            self.page.goto(
-                "https://www.hollandandbarrett.com/my-account/overview",
-                wait_until="domcontentloaded"
-            )
-
-        # --------------------------------------------------------
-        # Wait for account page
-        # --------------------------------------------------------
 
         try:
 
-            self.page.wait_for_url(
-                "**/my-account/**",
-                timeout=15000
-            )
+            self.page.wait_for_timeout(1500)
 
-        except Exception:
-
-            # Sometimes website changes URL slowly.
-            # Direct navigation is used as final fallback.
-
-            if "/my-account/" not in self.page.url:
-
-                print(
-                    "Account URL was not detected."
+            cookie_button = self.page.locator(
+                "#onetrust-banner-sdk button"
+            ).filter(
+                has_text=re.compile(
+                    r"yes\s*i\s*accept",
+                    re.I
                 )
-
-                self.page.goto(
-                    "https://www.hollandandbarrett.com/my-account/overview",
-                    wait_until="domcontentloaded"
-                )
-
-        self.page.wait_for_timeout(1500)
-
-        print(
-            f"Current URL: {self.page.url}"
-        )
-
-        print(
-            "My Account opened successfully."
-        )
-
-    # ============================================================
-    # LOGOUT
-    # ============================================================
-
-    def logout(self) -> None:
-
-        print(
-            "Looking for Sign out..."
-        )
-
-        # --------------------------------------------------------
-        # The H&B account page has a visible "Sign out" button.
-        # Scroll through the page until it becomes visible.
-        # --------------------------------------------------------
-
-        sign_out = self.page.get_by_text(
-            "Sign out",
-            exact=True
-        )
-
-        # --------------------------------------------------------
-        # Try exact text first
-        # --------------------------------------------------------
-
-        for i in range(sign_out.count()):
-
-            element = sign_out.nth(i)
-
-            try:
-
-                if element.is_visible(
-                    timeout=2000
-                ):
-
-                    print(
-                        "Sign out found."
-                    )
-
-                    element.scroll_into_view_if_needed()
-
-                    self.page.wait_for_timeout(500)
-
-                    element.click(
-                        force=True
-                    )
-
-                    print(
-                        "Sign out clicked."
-                    )
-
-                    return
-
-            except Exception:
-                continue
-
-        # --------------------------------------------------------
-        # Scroll down and search again
-        # --------------------------------------------------------
-
-        print(
-            "Sign out not visible yet. Scrolling..."
-        )
-
-        for _ in range(8):
-
-            self.page.mouse.wheel(
-                0,
-                700
             )
 
-            self.page.wait_for_timeout(700)
+            for i in range(
+                cookie_button.count()
+            ):
 
-            sign_out = self.page.get_by_text(
-                "Sign out",
-                exact=True
-            )
-
-            for i in range(sign_out.count()):
-
-                element = sign_out.nth(i)
+                button = cookie_button.nth(i)
 
                 try:
 
-                    if element.is_visible(
-                        timeout=1000
+                    if button.is_visible(
+                        timeout=2000
                     ):
 
                         print(
-                            "Sign out found after scrolling."
+                            "Cookie popup found."
                         )
 
-                        element.scroll_into_view_if_needed()
-
-                        self.page.wait_for_timeout(300)
-
-                        element.click(
+                        button.click(
                             force=True
                         )
 
                         print(
-                            "Sign out clicked."
+                            "Cookies Accepted"
+                        )
+
+                        self.page.wait_for_timeout(
+                            1000
                         )
 
                         return
@@ -359,147 +80,400 @@ class AccountPage:
                 except Exception:
                     continue
 
-        # --------------------------------------------------------
-        # Button fallback
-        # --------------------------------------------------------
+            print(
+                "No cookie popup. Continuing..."
+            )
 
-        sign_out_button = self.page.get_by_role(
-            "button",
+        except Exception:
+
+            print(
+                "No cookie popup. Continuing..."
+            )
+
+    # ============================================================
+    # CATEGORY LOCATOR
+    # ============================================================
+
+    def _category_locator(
+        self,
+        name: str
+    ):
+
+        return self.page.get_by_role(
+            "link",
             name=re.compile(
-                r"sign\s*out|logout|log\s*out",
+                rf"^{re.escape(name)}$",
                 re.I
             )
         )
 
-        for i in range(
-            sign_out_button.count()
-        ):
-
-            button = sign_out_button.nth(i)
-
-            try:
-
-                if button.is_visible(
-                    timeout=1500
-                ):
-
-                    print(
-                        "Sign out button found."
-                    )
-
-                    button.scroll_into_view_if_needed()
-
-                    button.click(
-                        force=True
-                    )
-
-                    print(
-                        "Sign out button clicked."
-                    )
-
-                    return
-
-            except Exception:
-                continue
-
-        # --------------------------------------------------------
-        # Original Java locator fallback
-        # --------------------------------------------------------
-
-        original_logout = self.page.locator(
-            "button.jsx-4006266799.secondary.size-m.with-icon"
-        )
-
-        for i in range(
-            original_logout.count()
-        ):
-
-            button = original_logout.nth(i)
-
-            try:
-
-                if button.is_visible(
-                    timeout=1000
-                ):
-
-                    print(
-                        "Original Java logout locator found."
-                    )
-
-                    button.scroll_into_view_if_needed()
-
-                    button.click(
-                        force=True
-                    )
-
-                    print(
-                        "Logout clicked."
-                    )
-
-                    return
-
-            except Exception:
-                continue
-
-        raise AssertionError(
-            "Sign out / Logout button was not found."
-        )
-
     # ============================================================
-    # VERIFY LOGOUT
+    # RANDOM CATEGORY
     # ============================================================
 
-    def verify_logout(self) -> None:
+    def select_random_category(self) -> str:
+
+        visible_categories = []
+
+        for name in CATEGORY_NAMES:
+
+            locator = self._category_locator(
+                name
+            )
+
+            for i in range(
+                locator.count()
+            ):
+
+                element = locator.nth(i)
+
+                try:
+
+                    if element.is_visible(
+                        timeout=700
+                    ):
+
+                        visible_categories.append(
+                            (name, element)
+                        )
+
+                        break
+
+                except Exception:
+                    continue
+
+        if not visible_categories:
+
+            raise AssertionError(
+                "No visible shopping categories found."
+            )
+
+        selected_name, selected_element = (
+            random.choice(
+                visible_categories
+            )
+        )
 
         print(
-            "Verifying logout..."
+            f"Visible categories found: "
+            f"{len(visible_categories)}"
+        )
+
+        print(
+            f"Random category selected: "
+            f"{selected_name}"
+        )
+
+        selected_element.scroll_into_view_if_needed()
+
+        selected_element.click(
+            force=True
+        )
+
+        self.page.wait_for_timeout(
+            2000
+        )
+
+        print(
+            f"Successfully opened category: "
+            f"{selected_name}"
+        )
+
+        return selected_name
+
+    # ============================================================
+    # CLOSE BASKET POPUP
+    # ============================================================
+
+    def close_basket_popup(self) -> None:
+
+        # Exact XPath provided by you
+        close_button = self.page.locator(
+            "xpath=//*[@id='__next']/main/div[1]/div/div[2]/div/div/div[5]/button"
         )
 
         try:
 
-            self.page.wait_for_url(
-                "**hollandandbarrett.com/**",
-                timeout=20000
-            )
+            if close_button.is_visible(
+                timeout=3000
+            ):
+
+                print(
+                    "Basket popup found."
+                )
+
+                close_button.click(
+                    force=True
+                )
+
+                print(
+                    "Basket popup closed."
+                )
+
+                self.page.wait_for_timeout(
+                    700
+                )
+
+                return
 
         except Exception:
             pass
 
-        current_url = self.page.url.rstrip("/")
+        # --------------------------------------------------------
+        # Fallback: Continue Shopping
+        # --------------------------------------------------------
 
-        expected_url = HOME_URL.rstrip("/")
+        continue_shopping = self.page.get_by_role(
+            "button",
+            name=re.compile(
+                r"continue\s*shopping",
+                re.I
+            )
+        )
+
+        try:
+
+            if continue_shopping.is_visible(
+                timeout=1500
+            ):
+
+                continue_shopping.click(
+                    force=True
+                )
+
+                print(
+                    "Continue shopping clicked."
+                )
+
+                self.page.wait_for_timeout(
+                    700
+                )
+
+        except Exception:
+            pass
+
+    # ============================================================
+    # GET VISIBLE ADD TO BASKET BUTTONS
+    # ============================================================
+
+    def _get_visible_basket_buttons(self):
+
+        buttons = self.page.get_by_role(
+            "button",
+            name=re.compile(
+                r"add\s*to\s*basket",
+                re.I
+            )
+        )
+
+        visible_buttons = []
+
+        for i in range(
+            buttons.count()
+        ):
+
+            button = buttons.nth(i)
+
+            try:
+
+                if not button.is_visible(
+                    timeout=500
+                ):
+                    continue
+
+                if not button.is_enabled():
+                    continue
+
+                box = button.bounding_box()
+
+                if box is None:
+                    continue
+
+                visible_buttons.append(
+                    button
+                )
+
+            except Exception:
+                continue
+
+        return visible_buttons
+
+    # ============================================================
+    # ADD ONE RANDOM PRODUCT
+    # ============================================================
+
+    def add_random_product_to_basket(
+        self
+    ) -> bool:
 
         print(
-            f"Current URL after logout: "
-            f"{self.page.url}"
+            "Looking for random Add to Basket product..."
         )
 
         # --------------------------------------------------------
-        # Logout may redirect to home page.
+        # First search currently visible buttons
         # --------------------------------------------------------
 
-        if current_url == expected_url:
-
-            print(
-                "Logout Successful"
-            )
-
-            return
-
-        # --------------------------------------------------------
-        # Sometimes H&B redirects to another public page.
-        # Make sure we are no longer inside account.
-        # --------------------------------------------------------
-
-        if "/my-account" not in current_url.lower():
-
-            print(
-                "Logout Successful"
-            )
-
-            return
-
-        raise AssertionError(
-            "Logout was not successful. "
-            f"Current URL: {self.page.url}"
+        visible_buttons = (
+            self._get_visible_basket_buttons()
         )
+
+        # --------------------------------------------------------
+        # If none found, scroll
+        # --------------------------------------------------------
+
+        if not visible_buttons:
+
+            print(
+                "No Add to Basket button currently visible. "
+                "Scrolling..."
+            )
+
+            for _ in range(8):
+
+                self.page.mouse.wheel(
+                    0,
+                    600
+                )
+
+                self.page.wait_for_timeout(
+                    700
+                )
+
+                visible_buttons = (
+                    self._get_visible_basket_buttons()
+                )
+
+                if visible_buttons:
+                    break
+
+        if not visible_buttons:
+
+            raise AssertionError(
+                "No visible Add to Basket buttons found."
+            )
+
+        # --------------------------------------------------------
+        # Random product
+        # --------------------------------------------------------
+
+        selected_index = random.randrange(
+            len(visible_buttons)
+        )
+
+        selected_button = (
+            visible_buttons[selected_index]
+        )
+
+        print(
+            f"Currently visible Add to Basket "
+            f"buttons: {len(visible_buttons)}"
+        )
+
+        print(
+            f"Random product selected: "
+            f"button #{selected_index + 1}"
+        )
+
+        # --------------------------------------------------------
+        # Scroll to product
+        # --------------------------------------------------------
+
+        selected_button.scroll_into_view_if_needed()
+
+        self.page.wait_for_timeout(
+            500
+        )
+
+        # --------------------------------------------------------
+        # Click Add to Basket
+        # --------------------------------------------------------
+
+        selected_button.click(
+            force=True
+        )
+
+        print(
+            "Product added to basket."
+        )
+
+        # --------------------------------------------------------
+        # IMPORTANT:
+        # Close basket popup immediately
+        # --------------------------------------------------------
+
+        self.close_basket_popup()
+
+        return True
+
+    # ============================================================
+    # ADD MULTIPLE RANDOM PRODUCTS
+    # ============================================================
+
+    def add_multiple_random_products(
+        self,
+        min_products: int = 2,
+        max_products: int = 4
+    ) -> int:
+
+        number_of_products = random.randint(
+            min_products,
+            max_products
+        )
+
+        print(
+            f"Random number of products to add: "
+            f"{number_of_products}"
+        )
+
+        products_added = 0
+
+        for product_number in range(
+            number_of_products
+        ):
+
+            print(
+                "\n" + "-" * 50
+            )
+
+            print(
+                f"Adding random product "
+                f"{product_number + 1} "
+                f"of {number_of_products}"
+            )
+
+            try:
+
+                success = (
+                    self.add_random_product_to_basket()
+                )
+
+                if success:
+
+                    products_added += 1
+
+            except Exception as e:
+
+                print(
+                    f"Product "
+                    f"{product_number + 1} "
+                    f"could not be added: "
+                    f"{type(e).__name__}"
+                )
+
+                # Try closing popup before next attempt
+                self.close_basket_popup()
+
+                # Continue instead of immediately failing
+                continue
+
+        print(
+            "\n" + "-" * 50
+        )
+
+        print(
+            f"Total random products added: "
+            f"{products_added}"
+        )
+
+        return products_added
