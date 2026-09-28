@@ -1,479 +1,257 @@
-import random
-import re
+import os
 
-from playwright.sync_api import Page
+from pages.login_page import LoginPage
+from pages.home_page import HomePage
+from pages.account_page import AccountPage
 
-from utils.config import CATEGORY_NAMES, HOME_URL
 
+# ================================================================
+# COMPLETE TEST FOR ONE USER
+# ================================================================
 
-class HomePage:
+def run_user_test(
+    browser,
+    email,
+    password,
+    user_name
+):
 
-    def __init__(self, page: Page):
-        self.page = page
+    print(
+        "\n" + "=" * 70
+    )
 
-    # ============================================================
-    # OPEN HOME PAGE
-    # ============================================================
+    print(
+        f"STARTING TEST FOR {user_name}"
+    )
 
-    def open(self) -> None:
+    print(
+        "=" * 70
+    )
 
-        self.page.goto(
-            HOME_URL,
-            wait_until="domcontentloaded"
+    # ------------------------------------------------------------
+    # Create NEW browser context for every user
+    # ------------------------------------------------------------
+
+    context = browser.new_context(
+        viewport={
+            "width": 1440,
+            "height": 900
+        },
+        locale="en-GB"
+    )
+
+    page = context.new_page()
+
+    page.set_default_timeout(
+        15000
+    )
+
+    try:
+
+        login_page = LoginPage(
+            page
         )
 
-        self.page.wait_for_timeout(1000)
+        home_page = HomePage(
+            page
+        )
 
-    # ============================================================
-    # ACCEPT COOKIES
-    # ============================================================
+        account_page = AccountPage(
+            page
+        )
 
-    def accept_cookies_if_present(self) -> None:
+        # ========================================================
+        # LOGIN
+        # ========================================================
 
         print(
-            "Checking cookie popup..."
+            f"{user_name}: Opening Login Page"
         )
 
-        try:
+        login_page.open()
 
-            self.page.wait_for_timeout(1500)
+        print(
+            f"{user_name}: Entering login details"
+        )
 
-            cookie_button = self.page.locator(
-                "#onetrust-banner-sdk button"
-            ).filter(
-                has_text=re.compile(
-                    r"yes\s*i\s*accept",
-                    re.I
-                )
-            )
+        login_page.login(
+            email,
+            password
+        )
 
-            for i in range(
-                cookie_button.count()
-            ):
+        login_page.verify_login()
 
-                button = cookie_button.nth(i)
+        print(
+            f"{user_name}: Login Successful"
+        )
 
-                try:
+        # ========================================================
+        # HOME PAGE
+        # ========================================================
 
-                    if button.is_visible(
-                        timeout=2000
-                    ):
+        print(
+            f"{user_name}: Opening Home Page"
+        )
 
-                        print(
-                            "Cookie popup found."
-                        )
+        home_page.open()
 
-                        button.click(
-                            force=True
-                        )
+        # ========================================================
+        # COOKIES
+        # ========================================================
 
-                        print(
-                            "Cookies Accepted"
-                        )
+        home_page.accept_cookies_if_present()
 
-                        self.page.wait_for_timeout(
-                            1000
-                        )
+        # ========================================================
+        # RANDOM CATEGORY
+        # ========================================================
 
-                        return
+        selected_category = (
+            home_page.select_random_category()
+        )
 
-                except Exception:
-                    continue
+        # ========================================================
+        # RANDOM PRODUCTS
+        # ========================================================
 
-            print(
-                "No cookie popup. Continuing..."
-            )
-
-        except Exception:
-
-            print(
-                "No cookie popup. Continuing..."
-            )
-
-    # ============================================================
-    # CATEGORY LOCATOR
-    # ============================================================
-
-    def _category_locator(
-        self,
-        name: str
-    ):
-
-        return self.page.get_by_role(
-            "link",
-            name=re.compile(
-                rf"^{re.escape(name)}$",
-                re.I
+        products_added = (
+            home_page.add_multiple_random_products(
+                min_products=2,
+                max_products=4
             )
         )
 
-    # ============================================================
-    # RANDOM CATEGORY
-    # ============================================================
-
-    def select_random_category(self) -> str:
-
-        visible_categories = []
-
-        for name in CATEGORY_NAMES:
-
-            locator = self._category_locator(
-                name
-            )
-
-            for i in range(
-                locator.count()
-            ):
-
-                element = locator.nth(i)
-
-                try:
-
-                    if element.is_visible(
-                        timeout=700
-                    ):
-
-                        visible_categories.append(
-                            (name, element)
-                        )
-
-                        break
-
-                except Exception:
-                    continue
-
-        if not visible_categories:
+        if products_added == 0:
 
             raise AssertionError(
-                "No visible shopping categories found."
+                f"{user_name}: "
+                "No products were added to basket."
             )
 
-        selected_name, selected_element = (
-            random.choice(
-                visible_categories
-            )
+        print(
+            f"{user_name}: "
+            f"Category = {selected_category}"
         )
 
         print(
-            f"Visible categories found: "
-            f"{len(visible_categories)}"
+            f"{user_name}: "
+            f"Products Added = {products_added}"
         )
+
+        # ========================================================
+        # MY ACCOUNT
+        # ========================================================
 
         print(
-            f"Random category selected: "
-            f"{selected_name}"
+            f"{user_name}: Opening My Account"
         )
 
-        selected_element.scroll_into_view_if_needed()
+        account_page.open_my_account()
 
-        selected_element.click(
-            force=True
-        )
-
-        self.page.wait_for_timeout(
-            2000
-        )
+        # ========================================================
+        # LOGOUT
+        # ========================================================
 
         print(
-            f"Successfully opened category: "
-            f"{selected_name}"
+            f"{user_name}: Logging out"
         )
 
-        return selected_name
+        account_page.logout()
+
+        # ========================================================
+        # VERIFY LOGOUT
+        # ========================================================
+
+        account_page.verify_logout()
+
+        print(
+            f"{user_name}: Logout Successful"
+        )
+
+    finally:
+
+        context.close()
+
+        print(
+            f"{user_name}: Browser context closed"
+        )
+
+
+# ================================================================
+# MULTIPLE USER TEST
+# ================================================================
+
+def test_multiple_users_random_products(
+    browser
+):
 
     # ============================================================
-    # CLOSE BASKET POPUP
+    # USER 1
     # ============================================================
 
-    def close_basket_popup(self) -> None:
+    user1_email = os.getenv(
+        "HB_EMAIL",
+        ""
+    )
 
-        # Exact XPath provided by you
-        close_button = self.page.locator(
-            "xpath=//*[@id='__next']/main/div[1]/div/div[2]/div/div/div[5]/button"
-        )
-
-        try:
-
-            if close_button.is_visible(
-                timeout=3000
-            ):
-
-                print(
-                    "Basket popup found."
-                )
-
-                close_button.click(
-                    force=True
-                )
-
-                print(
-                    "Basket popup closed."
-                )
-
-                self.page.wait_for_timeout(
-                    700
-                )
-
-                return
-
-        except Exception:
-            pass
-
-        # --------------------------------------------------------
-        # Fallback: Continue Shopping
-        # --------------------------------------------------------
-
-        continue_shopping = self.page.get_by_role(
-            "button",
-            name=re.compile(
-                r"continue\s*shopping",
-                re.I
-            )
-        )
-
-        try:
-
-            if continue_shopping.is_visible(
-                timeout=1500
-            ):
-
-                continue_shopping.click(
-                    force=True
-                )
-
-                print(
-                    "Continue shopping clicked."
-                )
-
-                self.page.wait_for_timeout(
-                    700
-                )
-
-        except Exception:
-            pass
+    user1_password = os.getenv(
+        "HB_PASSWORD",
+        ""
+    )
 
     # ============================================================
-    # GET VISIBLE ADD TO BASKET BUTTONS
+    # USER 2
     # ============================================================
 
-    def _get_visible_basket_buttons(self):
+    user2_email = os.getenv(
+        "HB_USER2_EMAIL",
+        ""
+    )
 
-        buttons = self.page.get_by_role(
-            "button",
-            name=re.compile(
-                r"add\s*to\s*basket",
-                re.I
-            )
-        )
-
-        visible_buttons = []
-
-        for i in range(
-            buttons.count()
-        ):
-
-            button = buttons.nth(i)
-
-            try:
-
-                if not button.is_visible(
-                    timeout=500
-                ):
-                    continue
-
-                if not button.is_enabled():
-                    continue
-
-                box = button.bounding_box()
-
-                if box is None:
-                    continue
-
-                visible_buttons.append(
-                    button
-                )
-
-            except Exception:
-                continue
-
-        return visible_buttons
+    user2_password = os.getenv(
+        "HB_USER2_PASSWORD",
+        ""
+    )
 
     # ============================================================
-    # ADD ONE RANDOM PRODUCT
+    # VALIDATE USER 1
     # ============================================================
 
-    def add_random_product_to_basket(
-        self
-    ) -> bool:
+    if not user1_email or not user1_password:
 
-        print(
-            "Looking for random Add to Basket product..."
+        raise ValueError(
+            "HB_EMAIL and HB_PASSWORD "
+            "are required in .env"
         )
-
-        # --------------------------------------------------------
-        # First search currently visible buttons
-        # --------------------------------------------------------
-
-        visible_buttons = (
-            self._get_visible_basket_buttons()
-        )
-
-        # --------------------------------------------------------
-        # If none found, scroll
-        # --------------------------------------------------------
-
-        if not visible_buttons:
-
-            print(
-                "No Add to Basket button currently visible. "
-                "Scrolling..."
-            )
-
-            for _ in range(8):
-
-                self.page.mouse.wheel(
-                    0,
-                    600
-                )
-
-                self.page.wait_for_timeout(
-                    700
-                )
-
-                visible_buttons = (
-                    self._get_visible_basket_buttons()
-                )
-
-                if visible_buttons:
-                    break
-
-        if not visible_buttons:
-
-            raise AssertionError(
-                "No visible Add to Basket buttons found."
-            )
-
-        # --------------------------------------------------------
-        # Random product
-        # --------------------------------------------------------
-
-        selected_index = random.randrange(
-            len(visible_buttons)
-        )
-
-        selected_button = (
-            visible_buttons[selected_index]
-        )
-
-        print(
-            f"Currently visible Add to Basket "
-            f"buttons: {len(visible_buttons)}"
-        )
-
-        print(
-            f"Random product selected: "
-            f"button #{selected_index + 1}"
-        )
-
-        # --------------------------------------------------------
-        # Scroll to product
-        # --------------------------------------------------------
-
-        selected_button.scroll_into_view_if_needed()
-
-        self.page.wait_for_timeout(
-            500
-        )
-
-        # --------------------------------------------------------
-        # Click Add to Basket
-        # --------------------------------------------------------
-
-        selected_button.click(
-            force=True
-        )
-
-        print(
-            "Product added to basket."
-        )
-
-        # --------------------------------------------------------
-        # IMPORTANT:
-        # Close basket popup immediately
-        # --------------------------------------------------------
-
-        self.close_basket_popup()
-
-        return True
 
     # ============================================================
-    # ADD MULTIPLE RANDOM PRODUCTS
+    # VALIDATE USER 2
     # ============================================================
 
-    def add_multiple_random_products(
-        self,
-        min_products: int = 2,
-        max_products: int = 4
-    ) -> int:
+    if not user2_email or not user2_password:
 
-        number_of_products = random.randint(
-            min_products,
-            max_products
+        raise ValueError(
+            "HB_USER2_EMAIL and HB_USER2_PASSWORD "
+            "are required in .env"
         )
 
-        print(
-            f"Random number of products to add: "
-            f"{number_of_products}"
-        )
+    # ============================================================
+    # USER 1 RUN
+    # ============================================================
 
-        products_added = 0
+    run_user_test(
+        browser,
+        user1_email,
+        user1_password,
+        "User 1"
+    )
 
-        for product_number in range(
-            number_of_products
-        ):
+    # ============================================================
+    # USER 2 RUN
+    # ============================================================
 
-            print(
-                "\n" + "-" * 50
-            )
-
-            print(
-                f"Adding random product "
-                f"{product_number + 1} "
-                f"of {number_of_products}"
-            )
-
-            try:
-
-                success = (
-                    self.add_random_product_to_basket()
-                )
-
-                if success:
-
-                    products_added += 1
-
-            except Exception as e:
-
-                print(
-                    f"Product "
-                    f"{product_number + 1} "
-                    f"could not be added: "
-                    f"{type(e).__name__}"
-                )
-
-                # Try closing popup before next attempt
-                self.close_basket_popup()
-
-                # Continue instead of immediately failing
-                continue
-
-        print(
-            "\n" + "-" * 50
-        )
-
-        print(
-            f"Total random products added: "
-            f"{products_added}"
-        )
-
-        return products_added
+    run_user_test(
+        browser,
+        user2_email,
+        user2_password,
+        "User 2"
+    )
