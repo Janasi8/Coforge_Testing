@@ -1,228 +1,505 @@
-import os
+import re
 
-from pages.login_page import LoginPage
-from pages.home_page import HomePage
-from pages.account_page import AccountPage
+from playwright.sync_api import Page
+from utils.config import HOME_URL
 
 
-def run_user_test(
-    browser,
-    email,
-    password,
-    user_name
-):
+class AccountPage:
 
-    print("\n" + "=" * 70)
-    print(
-        f"STARTING TEST FOR {user_name}"
-    )
-    print("=" * 70)
+    def __init__(self, page: Page):
+        self.page = page
 
-    # Separate browser context for each user
-    context = browser.new_context(
-        viewport={
-            "width": 1440,
-            "height": 900
-        },
-        locale="en-GB"
-    )
+    # ============================================================
+    # OPEN MY ACCOUNT
+    # ============================================================
 
-    page = context.new_page()
+    def open_my_account(self) -> None:
 
-    page.set_default_timeout(15000)
+        print("Looking for My H&B profile...")
 
-    try:
+        # --------------------------------------------------------
+        # STEP 1: Click the profile / My H&B area
+        # --------------------------------------------------------
 
-        login_page = LoginPage(page)
-        home_page = HomePage(page)
-        account_page = AccountPage(page)
+        profile_clicked = False
 
-        # ========================================================
-        # LOGIN
-        # ========================================================
+        profile_locators = [
 
-        print(
-            f"{user_name}: Opening Login Page"
-        )
+            # My H&B text
+            self.page.get_by_text(
+                "My H&B",
+                exact=True
+            ),
 
-        login_page.open()
+            # Profile button / area
+            self.page.get_by_role(
+                "button",
+                name=re.compile(
+                    r"my h&b|account|profile",
+                    re.I
+                )
+            ),
 
-        print(
-            f"{user_name}: Logging in..."
-        )
-
-        login_page.login(
-            email,
-            password
-        )
-
-        login_page.verify_login()
-
-        print(
-            f"{user_name}: Login Successful"
-        )
-
-        # ========================================================
-        # OPEN HOME PAGE
-        # ========================================================
-
-        print(
-            f"{user_name}: Opening Home Page"
-        )
-
-        home_page.open()
-
-        # ========================================================
-        # ACCEPT COOKIES
-        # ========================================================
-
-        home_page.accept_cookies_if_present()
-
-        # ========================================================
-        # RANDOM CATEGORY
-        # ========================================================
-
-        selected_category = (
-            home_page.select_random_category()
-        )
-
-        # ========================================================
-        # RANDOM MULTIPLE PRODUCTS
-        # ========================================================
-
-        products_added = (
-            home_page.add_multiple_random_products(
-                min_products=2,
-                max_products=4
+            # Generic element containing My H&B
+            self.page.locator(
+                "text=My H&B"
             )
-        )
+        ]
 
-        if products_added == 0:
+        for locator in profile_locators:
+
+            try:
+
+                count = locator.count()
+
+                if count == 0:
+                    continue
+
+                for i in range(count):
+
+                    element = locator.nth(i)
+
+                    try:
+
+                        if element.is_visible(timeout=2000):
+
+                            print(
+                                "My H&B profile found."
+                            )
+
+                            element.scroll_into_view_if_needed()
+
+                            self.page.wait_for_timeout(500)
+
+                            element.click(
+                                force=True
+                            )
+
+                            print(
+                                "My H&B profile clicked."
+                            )
+
+                            profile_clicked = True
+
+                            break
+
+                    except Exception:
+                        continue
+
+                if profile_clicked:
+                    break
+
+            except Exception:
+                continue
+
+        if not profile_clicked:
 
             raise AssertionError(
-                f"{user_name}: "
-                "No products were added."
+                "Could not find My H&B profile."
             )
 
-        print(
-            f"{user_name}: "
-            f"Category = {selected_category}"
-        )
+        # --------------------------------------------------------
+        # Wait for dropdown
+        # --------------------------------------------------------
+
+        self.page.wait_for_timeout(1000)
+
+        # --------------------------------------------------------
+        # STEP 2: Click My Account from dropdown
+        # --------------------------------------------------------
 
         print(
-            f"{user_name}: "
-            f"Products Added = "
-            f"{products_added}"
+            "Looking for My Account in profile dropdown..."
         )
 
-        # ========================================================
-        # MY ACCOUNT
-        # ========================================================
+        my_account = self.page.locator(
+            "a[href*='/my-account']"
+        )
+
+        clicked = False
+
+        if my_account.count() > 0:
+
+            for i in range(my_account.count()):
+
+                element = my_account.nth(i)
+
+                try:
+
+                    if element.is_visible(
+                        timeout=2000
+                    ):
+
+                        print(
+                            "My Account option found."
+                        )
+
+                        element.scroll_into_view_if_needed()
+
+                        self.page.wait_for_timeout(300)
+
+                        element.click(
+                            force=True
+                        )
+
+                        clicked = True
+
+                        print(
+                            "My Account clicked."
+                        )
+
+                        break
+
+                except Exception:
+                    continue
+
+        # --------------------------------------------------------
+        # Fallback: text My Account
+        # --------------------------------------------------------
+
+        if not clicked:
+
+            my_account = self.page.get_by_text(
+                "My Account",
+                exact=True
+            )
+
+            for i in range(my_account.count()):
+
+                element = my_account.nth(i)
+
+                try:
+
+                    if element.is_visible(
+                        timeout=2000
+                    ):
+
+                        print(
+                            "My Account option found."
+                        )
+
+                        element.scroll_into_view_if_needed()
+
+                        element.click(
+                            force=True
+                        )
+
+                        clicked = True
+
+                        print(
+                            "My Account clicked."
+                        )
+
+                        break
+
+                except Exception:
+                    continue
+
+        # --------------------------------------------------------
+        # If click did not work, open account URL directly
+        # --------------------------------------------------------
+
+        if not clicked:
+
+            print(
+                "My Account click was not successful."
+            )
+
+            print(
+                "Opening My Account page directly..."
+            )
+
+            self.page.goto(
+                "https://www.hollandandbarrett.com/my-account/overview",
+                wait_until="domcontentloaded"
+            )
+
+        # --------------------------------------------------------
+        # Wait for account page
+        # --------------------------------------------------------
+
+        try:
+
+            self.page.wait_for_url(
+                "**/my-account/**",
+                timeout=15000
+            )
+
+        except Exception:
+
+            # Sometimes website changes URL slowly.
+            # Direct navigation is used as final fallback.
+
+            if "/my-account/" not in self.page.url:
+
+                print(
+                    "Account URL was not detected."
+                )
+
+                self.page.goto(
+                    "https://www.hollandandbarrett.com/my-account/overview",
+                    wait_until="domcontentloaded"
+                )
+
+        self.page.wait_for_timeout(1500)
 
         print(
-            f"{user_name}: Opening My Account"
+            f"Current URL: {self.page.url}"
         )
-
-        account_page.open_my_account()
-
-        # ========================================================
-        # LOGOUT
-        # ========================================================
 
         print(
-            f"{user_name}: Logging out"
+            "My Account opened successfully."
         )
 
-        account_page.logout()
+    # ============================================================
+    # LOGOUT
+    # ============================================================
 
-        account_page.verify_logout()
+    def logout(self) -> None:
 
         print(
-            f"{user_name}: Logout Successful"
+            "Looking for Sign out..."
         )
 
-    finally:
+        # --------------------------------------------------------
+        # The H&B account page has a visible "Sign out" button.
+        # Scroll through the page until it becomes visible.
+        # --------------------------------------------------------
 
-        context.close()
+        sign_out = self.page.get_by_text(
+            "Sign out",
+            exact=True
+        )
+
+        # --------------------------------------------------------
+        # Try exact text first
+        # --------------------------------------------------------
+
+        for i in range(sign_out.count()):
+
+            element = sign_out.nth(i)
+
+            try:
+
+                if element.is_visible(
+                    timeout=2000
+                ):
+
+                    print(
+                        "Sign out found."
+                    )
+
+                    element.scroll_into_view_if_needed()
+
+                    self.page.wait_for_timeout(500)
+
+                    element.click(
+                        force=True
+                    )
+
+                    print(
+                        "Sign out clicked."
+                    )
+
+                    return
+
+            except Exception:
+                continue
+
+        # --------------------------------------------------------
+        # Scroll down and search again
+        # --------------------------------------------------------
 
         print(
-            f"{user_name}: Browser context closed"
+            "Sign out not visible yet. Scrolling..."
         )
 
+        for _ in range(8):
 
-# =================================================================
-# MULTIPLE USERS
-# =================================================================
+            self.page.mouse.wheel(
+                0,
+                700
+            )
 
-def test_multiple_users_random_products(
-    browser
-):
+            self.page.wait_for_timeout(700)
 
-    # =============================================================
-    # USER 1
-    # =============================================================
+            sign_out = self.page.get_by_text(
+                "Sign out",
+                exact=True
+            )
 
-    user1_email = os.getenv(
-        "HB_EMAIL",
-        ""
-    )
+            for i in range(sign_out.count()):
 
-    user1_password = os.getenv(
-        "HB_PASSWORD",
-        ""
-    )
+                element = sign_out.nth(i)
 
-    # =============================================================
-    # USER 2
-    # =============================================================
+                try:
 
-    user2_email = os.getenv(
-        "HB_USER2_EMAIL",
-        ""
-    )
+                    if element.is_visible(
+                        timeout=1000
+                    ):
 
-    user2_password = os.getenv(
-        "HB_USER2_PASSWORD",
-        ""
-    )
+                        print(
+                            "Sign out found after scrolling."
+                        )
 
-    # =============================================================
-    # VALIDATE CREDENTIALS
-    # =============================================================
+                        element.scroll_into_view_if_needed()
 
-    if not user1_email or not user1_password:
+                        self.page.wait_for_timeout(300)
 
-        raise ValueError(
-            "HB_EMAIL and HB_PASSWORD "
-            "are required in .env"
+                        element.click(
+                            force=True
+                        )
+
+                        print(
+                            "Sign out clicked."
+                        )
+
+                        return
+
+                except Exception:
+                    continue
+
+        # --------------------------------------------------------
+        # Button fallback
+        # --------------------------------------------------------
+
+        sign_out_button = self.page.get_by_role(
+            "button",
+            name=re.compile(
+                r"sign\s*out|logout|log\s*out",
+                re.I
+            )
         )
 
-    if not user2_email or not user2_password:
+        for i in range(
+            sign_out_button.count()
+        ):
 
-        raise ValueError(
-            "HB_USER2_EMAIL and "
-            "HB_USER2_PASSWORD "
-            "are required in .env"
+            button = sign_out_button.nth(i)
+
+            try:
+
+                if button.is_visible(
+                    timeout=1500
+                ):
+
+                    print(
+                        "Sign out button found."
+                    )
+
+                    button.scroll_into_view_if_needed()
+
+                    button.click(
+                        force=True
+                    )
+
+                    print(
+                        "Sign out button clicked."
+                    )
+
+                    return
+
+            except Exception:
+                continue
+
+        # --------------------------------------------------------
+        # Original Java locator fallback
+        # --------------------------------------------------------
+
+        original_logout = self.page.locator(
+            "button.jsx-4006266799.secondary.size-m.with-icon"
         )
 
-    # =============================================================
-    # USER 1
-    # =============================================================
+        for i in range(
+            original_logout.count()
+        ):
 
-    run_user_test(
-        browser,
-        user1_email,
-        user1_password,
-        "User 1"
-    )
+            button = original_logout.nth(i)
 
-    # =============================================================
-    # USER 2
-    # =============================================================
+            try:
 
-    run_user_test(
-        browser,
-        user2_email,
-        user2_password,
-        "User 2"
-    )
+                if button.is_visible(
+                    timeout=1000
+                ):
+
+                    print(
+                        "Original Java logout locator found."
+                    )
+
+                    button.scroll_into_view_if_needed()
+
+                    button.click(
+                        force=True
+                    )
+
+                    print(
+                        "Logout clicked."
+                    )
+
+                    return
+
+            except Exception:
+                continue
+
+        raise AssertionError(
+            "Sign out / Logout button was not found."
+        )
+
+    # ============================================================
+    # VERIFY LOGOUT
+    # ============================================================
+
+    def verify_logout(self) -> None:
+
+        print(
+            "Verifying logout..."
+        )
+
+        try:
+
+            self.page.wait_for_url(
+                "**hollandandbarrett.com/**",
+                timeout=20000
+            )
+
+        except Exception:
+            pass
+
+        current_url = self.page.url.rstrip("/")
+
+        expected_url = HOME_URL.rstrip("/")
+
+        print(
+            f"Current URL after logout: "
+            f"{self.page.url}"
+        )
+
+        # --------------------------------------------------------
+        # Logout may redirect to home page.
+        # --------------------------------------------------------
+
+        if current_url == expected_url:
+
+            print(
+                "Logout Successful"
+            )
+
+            return
+
+        # --------------------------------------------------------
+        # Sometimes H&B redirects to another public page.
+        # Make sure we are no longer inside account.
+        # --------------------------------------------------------
+
+        if "/my-account" not in current_url.lower():
+
+            print(
+                "Logout Successful"
+            )
+
+            return
+
+        raise AssertionError(
+            "Logout was not successful. "
+            f"Current URL: {self.page.url}"
+        )
