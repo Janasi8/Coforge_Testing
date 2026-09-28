@@ -1,0 +1,157 @@
+import re
+from playwright.sync_api import Page
+from utils.config import HOME_URL
+
+
+class AccountPage:
+
+    def __init__(self, page: Page):
+        self.page = page
+
+    # ============================================================
+    # OPEN MY ACCOUNT
+    # ============================================================
+
+    def open_my_account(self) -> None:
+
+        print("Looking for profile icon...")
+
+        # Logged-in profile icon
+        profile = self.page.locator(
+            "div[aria-label='Janasi']"
+        )
+
+        if profile.count() == 0:
+            raise AssertionError(
+                "Could not find profile icon."
+            )
+
+        clicked = False
+
+        for i in range(profile.count()):
+
+            element = profile.nth(i)
+
+            try:
+
+                if element.is_visible(timeout=2000):
+
+                    print("Profile icon found.")
+
+                    element.scroll_into_view_if_needed()
+
+                    self.page.wait_for_timeout(500)
+
+                    element.click(force=True)
+
+                    print("Profile icon clicked.")
+
+                    clicked = True
+
+                    break
+
+            except Exception:
+                continue
+
+        if not clicked:
+            raise AssertionError(
+                "Could not click profile icon."
+            )
+
+        # Clicking the profile icon directly opens
+        # My Account page
+        self.page.wait_for_url(
+            "**/my-account/overview",
+            timeout=15000
+        )
+
+        print("My Account page opened.")
+
+    # ============================================================
+    # LOGOUT
+    # ============================================================
+
+    def logout(self) -> None:
+
+        print("Looking for Sign out...")
+
+        # Actual button shown on My Account page
+        sign_out = self.page.get_by_role(
+            "button",
+            name="Sign out",
+            exact=True
+        )
+
+        if sign_out.count() == 0:
+
+            # Fallback
+            sign_out = self.page.get_by_text(
+                "Sign out",
+                exact=True
+            )
+
+        if sign_out.count() == 0:
+            raise AssertionError(
+                "Sign out button was not found."
+            )
+
+        clicked = False
+
+        for i in range(sign_out.count()):
+
+            element = sign_out.nth(i)
+
+            try:
+
+                if element.is_visible(timeout=2000):
+
+                    print("Sign out button found.")
+
+                    # Sign out is lower on the page
+                    element.scroll_into_view_if_needed()
+
+                    self.page.wait_for_timeout(1000)
+
+                    element.click(force=True)
+
+                    print("Sign out clicked.")
+
+                    clicked = True
+
+                    break
+
+            except Exception:
+                continue
+
+        if not clicked:
+            raise AssertionError(
+                "Could not click Sign out."
+            )
+
+    # ============================================================
+    # VERIFY LOGOUT
+    # ============================================================
+
+    def verify_logout(self) -> None:
+
+        print("Verifying logout...")
+
+        self.page.wait_for_url(
+            "**hollandandbarrett.com/**",
+            timeout=20000
+        )
+
+        current_url = self.page.url.rstrip("/")
+        expected_url = HOME_URL.rstrip("/")
+
+        print(
+            f"Current URL after logout: "
+            f"{self.page.url}"
+        )
+
+        assert current_url == expected_url, (
+            f"Unexpected URL after logout: "
+            f"{self.page.url}"
+        )
+
+        print("Logout Successful")
