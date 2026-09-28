@@ -1,264 +1,228 @@
-import re
-from playwright.sync_api import Page
-from utils.config import HOME_URL
+import os
+
+from pages.login_page import LoginPage
+from pages.home_page import HomePage
+from pages.account_page import AccountPage
 
 
-class AccountPage:
+def run_user_test(
+    browser,
+    email,
+    password,
+    user_name
+):
 
-    def __init__(self, page: Page):
-        self.page = page
+    print("\n" + "=" * 70)
+    print(
+        f"STARTING TEST FOR {user_name}"
+    )
+    print("=" * 70)
 
-    # ============================================================
-    # OPEN MY ACCOUNT
-    # ============================================================
+    # Separate browser context for each user
+    context = browser.new_context(
+        viewport={
+            "width": 1440,
+            "height": 900
+        },
+        locale="en-GB"
+    )
 
-    def open_my_account(self) -> None:
+    page = context.new_page()
 
-        print("Looking for profile icon...")
+    page.set_default_timeout(15000)
 
-        # J / Profile icon
-        profile = self.page.locator(
-            "div[aria-label='Janasi']"
-        )
+    try:
 
-        if profile.count() == 0:
-            raise AssertionError(
-                "Could not find profile icon."
-            )
-
-        profile_clicked = False
-
-        for i in range(profile.count()):
-
-            element = profile.nth(i)
-
-            try:
-                if element.is_visible(timeout=2000):
-
-                    print("Profile icon found.")
-
-                    element.scroll_into_view_if_needed()
-
-                    self.page.wait_for_timeout(500)
-
-                    element.click(force=True)
-
-                    print("Profile dropdown opened.")
-
-                    profile_clicked = True
-                    break
-
-            except Exception:
-                continue
-
-        if not profile_clicked:
-            raise AssertionError(
-                "Could not click profile icon."
-            )
-
-        # Give dropdown time to appear
-        self.page.wait_for_timeout(1000)
+        login_page = LoginPage(page)
+        home_page = HomePage(page)
+        account_page = AccountPage(page)
 
         # ========================================================
-        # CLICK MY ACCOUNT FROM DROPDOWN
+        # LOGIN
         # ========================================================
-
-        print("Looking for My Account option...")
-
-        my_account = self.page.get_by_text(
-            "My Account",
-            exact=True
-        )
-
-        if my_account.count() == 0:
-
-            # Fallback using href
-            my_account = self.page.locator(
-                "a[href*='/my-account/']"
-            )
-
-        if my_account.count() == 0:
-            raise AssertionError(
-                "My Account option was not found."
-            )
-
-        account_clicked = False
-
-        for i in range(my_account.count()):
-
-            element = my_account.nth(i)
-
-            try:
-
-                if element.is_visible(timeout=2000):
-
-                    print("My Account option found.")
-
-                    element.scroll_into_view_if_needed()
-
-                    self.page.wait_for_timeout(500)
-
-                    element.click(force=True)
-
-                    print("My Account clicked.")
-
-                    account_clicked = True
-
-                    break
-
-            except Exception:
-                continue
-
-        if not account_clicked:
-            raise AssertionError(
-                "Could not click My Account."
-            )
-
-        # Wait for My Account page
-        self.page.wait_for_url(
-            "**/my-account/overview",
-            timeout=15000
-        )
-
-        print("My Account page opened.")
-
-    # ============================================================
-    # LOGOUT
-    # ============================================================
-
-    def logout(self) -> None:
-
-        print("Looking for profile icon for logout...")
-
-        # After opening My Account, click profile again
-        # to open the dropdown containing Sign out.
-        profile = self.page.locator(
-            "div[aria-label='Janasi']"
-        )
-
-        if profile.count() == 0:
-            raise AssertionError(
-                "Could not find profile icon for logout."
-            )
-
-        profile_clicked = False
-
-        for i in range(profile.count()):
-
-            element = profile.nth(i)
-
-            try:
-
-                if element.is_visible(timeout=2000):
-
-                    element.scroll_into_view_if_needed()
-
-                    self.page.wait_for_timeout(500)
-
-                    element.click(force=True)
-
-                    print(
-                        "Profile dropdown opened for logout."
-                    )
-
-                    profile_clicked = True
-
-                    break
-
-            except Exception:
-                continue
-
-        if not profile_clicked:
-            raise AssertionError(
-                "Could not click profile icon for logout."
-            )
-
-        # Give dropdown time to appear
-        self.page.wait_for_timeout(1000)
-
-        # ========================================================
-        # CLICK SIGN OUT
-        # ========================================================
-
-        print("Looking for Sign out...")
-
-        sign_out = self.page.get_by_text(
-            "Sign out",
-            exact=True
-        )
-
-        if sign_out.count() == 0:
-
-            # Fallback
-            sign_out = self.page.get_by_role(
-                "button",
-                name=re.compile(
-                    r"sign\s*out",
-                    re.I
-                )
-            )
-
-        if sign_out.count() == 0:
-            raise AssertionError(
-                "Sign out option was not found."
-            )
-
-        logout_clicked = False
-
-        for i in range(sign_out.count()):
-
-            element = sign_out.nth(i)
-
-            try:
-
-                if element.is_visible(timeout=2000):
-
-                    print("Sign out found.")
-
-                    element.scroll_into_view_if_needed()
-
-                    self.page.wait_for_timeout(500)
-
-                    element.click(force=True)
-
-                    print("Sign out clicked.")
-
-                    logout_clicked = True
-
-                    break
-
-            except Exception:
-                continue
-
-        if not logout_clicked:
-            raise AssertionError(
-                "Could not click Sign out."
-            )
-
-    # ============================================================
-    # VERIFY LOGOUT
-    # ============================================================
-
-    def verify_logout(self) -> None:
-
-        print("Verifying logout...")
-
-        self.page.wait_for_url(
-            "**hollandandbarrett.com/**",
-            timeout=20000
-        )
-
-        current_url = self.page.url.rstrip("/")
-        expected_url = HOME_URL.rstrip("/")
 
         print(
-            f"Current URL after logout: "
-            f"{self.page.url}"
+            f"{user_name}: Opening Login Page"
         )
 
-        assert current_url == expected_url, (
-            f"Unexpected URL after logout: "
-            f"{self.page.url}"
+        login_page.open()
+
+        print(
+            f"{user_name}: Logging in..."
         )
 
-        print("Logout Successful")
+        login_page.login(
+            email,
+            password
+        )
+
+        login_page.verify_login()
+
+        print(
+            f"{user_name}: Login Successful"
+        )
+
+        # ========================================================
+        # OPEN HOME PAGE
+        # ========================================================
+
+        print(
+            f"{user_name}: Opening Home Page"
+        )
+
+        home_page.open()
+
+        # ========================================================
+        # ACCEPT COOKIES
+        # ========================================================
+
+        home_page.accept_cookies_if_present()
+
+        # ========================================================
+        # RANDOM CATEGORY
+        # ========================================================
+
+        selected_category = (
+            home_page.select_random_category()
+        )
+
+        # ========================================================
+        # RANDOM MULTIPLE PRODUCTS
+        # ========================================================
+
+        products_added = (
+            home_page.add_multiple_random_products(
+                min_products=2,
+                max_products=4
+            )
+        )
+
+        if products_added == 0:
+
+            raise AssertionError(
+                f"{user_name}: "
+                "No products were added."
+            )
+
+        print(
+            f"{user_name}: "
+            f"Category = {selected_category}"
+        )
+
+        print(
+            f"{user_name}: "
+            f"Products Added = "
+            f"{products_added}"
+        )
+
+        # ========================================================
+        # MY ACCOUNT
+        # ========================================================
+
+        print(
+            f"{user_name}: Opening My Account"
+        )
+
+        account_page.open_my_account()
+
+        # ========================================================
+        # LOGOUT
+        # ========================================================
+
+        print(
+            f"{user_name}: Logging out"
+        )
+
+        account_page.logout()
+
+        account_page.verify_logout()
+
+        print(
+            f"{user_name}: Logout Successful"
+        )
+
+    finally:
+
+        context.close()
+
+        print(
+            f"{user_name}: Browser context closed"
+        )
+
+
+# =================================================================
+# MULTIPLE USERS
+# =================================================================
+
+def test_multiple_users_random_products(
+    browser
+):
+
+    # =============================================================
+    # USER 1
+    # =============================================================
+
+    user1_email = os.getenv(
+        "HB_EMAIL",
+        ""
+    )
+
+    user1_password = os.getenv(
+        "HB_PASSWORD",
+        ""
+    )
+
+    # =============================================================
+    # USER 2
+    # =============================================================
+
+    user2_email = os.getenv(
+        "HB_USER2_EMAIL",
+        ""
+    )
+
+    user2_password = os.getenv(
+        "HB_USER2_PASSWORD",
+        ""
+    )
+
+    # =============================================================
+    # VALIDATE CREDENTIALS
+    # =============================================================
+
+    if not user1_email or not user1_password:
+
+        raise ValueError(
+            "HB_EMAIL and HB_PASSWORD "
+            "are required in .env"
+        )
+
+    if not user2_email or not user2_password:
+
+        raise ValueError(
+            "HB_USER2_EMAIL and "
+            "HB_USER2_PASSWORD "
+            "are required in .env"
+        )
+
+    # =============================================================
+    # USER 1
+    # =============================================================
+
+    run_user_test(
+        browser,
+        user1_email,
+        user1_password,
+        "User 1"
+    )
+
+    # =============================================================
+    # USER 2
+    # =============================================================
+
+    run_user_test(
+        browser,
+        user2_email,
+        user2_password,
+        "User 2"
+    )
